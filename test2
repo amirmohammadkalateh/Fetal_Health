@@ -1,1 +1,56 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, BatchNormalization, Dropout
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping
+
+# Assuming 'fetal_health.csv' is in your current working directory.
+# If not, provide the correct path to the file.
+df = pd.read_csv('fetal_health.csv')
+
+X = df.drop('fetal_health', axis=1)
+y = df['fetal_health']
+y = to_categorical(y - 1)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
+
+# Scale the data using StandardScaler
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Define the input layer
+input_layer = Input(shape=(X_train.shape[1],))
+
+# Define the model architecture
+dense1 = Dense(64, activation='relu')(input_layer)
+batchnorm1 = BatchNormalization()(dense1)
+dropout1 = Dropout(0.2)(batchnorm1)
+
+dense2 = Dense(32, activation='relu')(dropout1)
+batchnorm2 = BatchNormalization()(dense2)
+dropout2 = Dropout(0.2)(batchnorm2)
+
+output_layer = Dense(3, activation='softmax')(dropout2)  # 3 output classes
+
+model = Model(inputs=input_layer, outputs=output_layer)
+
+# Compile the model
+model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Define EarlyStopping callback
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+
+# Train the model
+model.fit(X_train, y_train, epochs=100, batch_size=32, validation_split=0.2, callbacks=[early_stopping])
+
+# Evaluate the model
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f'Test Loss: {loss:.4f}')
+print(f'Test Accuracy: {accuracy:.4f}')
 
